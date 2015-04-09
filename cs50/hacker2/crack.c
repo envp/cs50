@@ -4,10 +4,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define MAX_PASS_LEN 8
-
-// Defining hash and salt lengths seperately
-// key_length = salt_length + hash_length
 #define MAX_PTXT_LEN 128
 #define MAX_CTXT_LEN 13
 #define MAX_SALT_LEN 2
@@ -29,7 +25,9 @@ int main(int argc, char* argv[])
     
     // Crypt ensures that the highest 2 bytes of the hash are the salt itself
     // Save some space for that null byte
-    char salt[MAX_SALT_LEN + 1] = {0}, ctxt[MAX_CTXT_LEN + 1] = {0}, ptxt[MAX_PTXT_LEN + 1] = {0};
+    char salt[MAX_SALT_LEN + 1] = {0}, 
+    ctxt[MAX_CTXT_LEN + 1] = {0}, 
+    ptxt[MAX_PTXT_LEN + 1] = {0};
 
     strncpy(salt, argv[1], MAX_SALT_LEN);
     strncpy(ctxt, argv[1], MAX_CTXT_LEN);
@@ -66,14 +64,17 @@ int dictionary(char* ctxt, char* salt, char* ptxt, const char* dictfname)
         if(strcmp(ctxt, crypt(candidate, salt)) == 0)
         {
             strncpy(ptxt, candidate, strlen(candidate));
+            fclose(dict);
             return 0;
         }
     }
+    fclose(dict);
     return 1;
 }
 
 // Fallback mechanism, brute force all passwords up to 8 bytes long
-// O(N^8), gotta run this make make meself a cuppa tea
+// O(N^8), gotta run this make make meself a cuppa tea, some dinner
+// and dessert for all of Uganda
 int brute_force(char *ctxt, char* salt, char* ptxt)
 {
     // Lol counters
