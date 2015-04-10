@@ -10,7 +10,7 @@ void printPyramid(int height)
     {
         for(c = 0; c < height - r - 1; ++c)
         {
-           printf(" ");
+            printf(" ");
         }
         for(c = height - r - 1; c <= height; ++c)
         {

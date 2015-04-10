@@ -112,7 +112,7 @@ int brute_force(char *ctxt, char* salt, char* ptxt)
                                     }
                                 }
                                 // Notify once every 95 * 95 attempts
-                                printf("%d\r", attempts);
+                                // printf("Attempts: %d\r", attempts);
                             }
                         }
                     }
