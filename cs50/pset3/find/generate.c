@@ -24,17 +24,17 @@
 
 int main(int argc, string argv[])
 {
-    // TODO: comment me
+    // Santiy check to conform to CLI args restrictions
     if (argc != 2 && argc != 3)
     {
         printf("Usage: generate n [s]\n");
         return 1;
     }
 
-    // TODO: comment me
+    // Get number of passes from CLI args
     int n = atoi(argv[1]);
 
-    // TODO: comment me
+    // We have an initial seed: argv[2] is not garbage!
     if (argc == 3)
     {
         srand48((long int) atoi(argv[2]));
@@ -44,7 +44,8 @@ int main(int argc, string argv[])
         srand48((long int) time(NULL));
     }
 
-    // TODO: comment me
+    // Loop through number of passes to generate random float
+    // And scale it per `LIMIT`
     for (int i = 0; i < n; i++)
     {
         printf("%i\n", (int) (drand48() * LIMIT));
