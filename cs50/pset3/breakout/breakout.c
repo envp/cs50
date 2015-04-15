@@ -62,6 +62,9 @@ GLabel initScoreboard(GWindow window);
 void updateScoreboard(GWindow window, GLabel label, int points, int lives);
 GObject detectCollision(GWindow window, GOval ball);
 
+// Inline functions to mutate game state based on collision events
+int handleObjectCollision(GWindow window, GOval ball);
+
 int main(void)
 {
     // seed pseudorandom number generator
@@ -75,7 +78,7 @@ int main(void)
 
     // instantiate ball, centered in middle of window
     GOval ball = initBall(window);
-    
+
     // instantiate paddle, centered at bottom of window
     GRect paddle = initPaddle(window);
 
@@ -91,13 +94,10 @@ int main(void)
     // number of points initially
     int points = 0;
 
-    // Dummy object for collision detection
-    GObject object;
-    
     // Randomized initial velocity of ball
     double velX = MAX_VEL * (drand48() - 0.5);
     double velY = sqrt((MAX_VEL * MAX_VEL) - (velX * velX));
-    
+
     // Flag to determine if state was reset
     bool reset = false;
 
@@ -106,10 +106,10 @@ int main(void)
     {
         printf("Added ball to window!\n");
         add(window, ball);
-        
+
         printf("Added paddle to window!\n");
-        add(window, paddle); 
-        
+        add(window, paddle);
+
         printf("Added scoreboard to window!\n");
         add(window, label);
     }
@@ -119,15 +119,15 @@ int main(void)
 
     // keep playing until game over
     while (lives > 0 && bricks > 0)
-    {     
+    {
         move(ball, velX, velY);
-        
+
         // Colliding with left edge of window
         if(getX(ball) <= 0)
         {
             velX *= -1.0;
         }
-                
+
         // Colliding with top edge of window
         if(getY(ball) <= 0)
         {
@@ -144,38 +144,47 @@ int main(void)
             // We lost a life!
             lives--;
             waitForClick();
-            
+
             // Relocate to center
             setLocation(
-                ball, 
-                (getWidth(window) - getWidth(ball)) / 2, 
+                ball,
+                (getWidth(window) - getWidth(ball)) / 2,
                 (getHeight(window) - getWidth(ball)) / 2
             );
-            
+
             reset = true;
         }
-        
         if(!reset)
         {
             GObject object = detectCollision(window, ball);
             
             if(object != NULL)
-            {           
-                if(object == paddle)
+            {
+                
+                switch(handleObjectCollision(window, ball))
                 {
-                    velY *= -1.0;
+                    // Paddle collision
+                    case 0:
+                        velY *= -1.0;
+                        break;
+                    // Brick collision
+                    case 1:
+                        // Increment speed by 1% for every brick destroyed
+                        velY *= -1.01;
+                        velX *= 1.01;
+                        removeGWindow(window, object);
+                        bricks--, points++;
+                        break;
+                    // No worthwhile collision
+                    default:
+                        break;
                 }
-                else if(strcmp(getType(object), "GRect") == 0)
-                {
-                    // Reach 522 speed ultimately
-                    velY *= -1.01;
-                    velX *= 1.01;
-                    removeGWindow(window, object);
-                    bricks--, points++;
-                }
+
             }
+                
         }
-        
+    }
+
         updateScoreboard(window, label, points, lives);
         pause(TICK_TIME);
     }
@@ -196,7 +205,7 @@ void initBricks(GWindow window)
     // brick row & col counters
     int row = 0, col = 0;
     char* colors[ROWS] = {"RED", "GREEN", "BLUE", "ORANGE", "GRAY"};
-    
+
     for(row = 0; row < ROWS; ++row)
     {
         for(col = 0; col < COLS; ++col)
@@ -207,14 +216,14 @@ void initBricks(GWindow window)
             // Set the color and fill
             setColor(brick, colors[row]);
             setFilled(brick, true);
-            
+
             // Relocate to correct position
             setLocation(
-                brick, 
-                EDGE_PAD_X + col * (BRICK_WIDTH + BRICK_SPACING), 
+                brick,
+                EDGE_PAD_X + col * (BRICK_WIDTH + BRICK_SPACING),
                 EDGE_PAD_Y + row * (BRICK_HEIGHT + BRICK_SPACING)
             );
-            
+
             // Add to window
             add(window, brick);
         }
@@ -231,14 +240,14 @@ GOval initBall(GWindow window)
     GOval ball = newGOval(0, 0, 2 * RADIUS, 2 * RADIUS);
     setColor(ball, "DARK_GRAY");
     setFilled(ball, true);
-    
+
     // Relocate it to the center
     setLocation(
-        ball, 
-        getWidth(window) / 2 - RADIUS, 
+        ball,
+        getWidth(window) / 2 - RADIUS,
         getHeight(window) / 2 - RADIUS
     );
-    
+
     // Returns ball or NULL (depending on success)
     return ball;
 }
@@ -251,11 +260,11 @@ GRect initPaddle(GWindow window)
     // THE PADDLE IS A RUN AWAY BRICK!
     // Again, instantiate at top-left
     GRect paddle = newGRect(0, 0, PADDLE_WIDTH, PADDLE_HEIGHT);
-    
+
     // Color it
     setColor(paddle, "BLACK");
     setFilled(paddle, true);
-    
+
     // Ship it
     setLocation(
         paddle,
@@ -285,10 +294,10 @@ void updateScoreboard(GWindow window, GLabel label, int points, int lives)
 
     // Using fixed width font makes it easier to calculate
     setFont(label, "Liberation Mono-Bold-32");
-    
+
     // A very light gray to keep focus off this
     setColor(label, "LIGHT_GRAY");
-    
+
     setLabel(label, s);
 
     // center label in window
@@ -342,4 +351,24 @@ GObject detectCollision(GWindow window, GOval ball)
 
     // no collision
     return NULL;
+}
+
+/**
+ * Handles logic for the ball colliding with some objects in the window like:
+ * Return codes:
+ * NOTHING: -1
+ * paddle: 0,
+ * brick: 1; 
+ */
+int handleObjectCollision(GWindow window, GOval ball)
+{
+    if(object == paddle)
+    {
+        return 0;
+    }
+    else if(strcmp(getType(object), "GRect") == 0)
+    {
+        return 1;
+    }
+    return -1;
 }
