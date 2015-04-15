@@ -48,7 +48,7 @@
 
 // Paddle constants
 #define PADDLE_WIDTH (BRICK_WIDTH + BRICK_WIDTH / 2)
-#define PADDLE_HEIGHT (BRICK_HEIGHT)
+#define PADDLE_HEIGHT (BRICK_HEIGHT + BRICK_HEIGHT / 2)
 
 // Maximum component (x or y) velocity: Pixels per tick (ms)
 #define TICK_TIME 10
@@ -59,11 +59,11 @@ void initBricks(GWindow window);
 GOval initBall(GWindow window);
 GRect initPaddle(GWindow window);
 GLabel initScoreboard(GWindow window);
-void updateScoreboard(GWindow window, GLabel label, int points, int lives);
+void updateScoreboard(GWindow window, GLabel label, double points, int lives);
 GObject detectCollision(GWindow window, GOval ball);
 
 // Inline functions to mutate game state based on collision events
-int handleObjectCollision(GWindow window, GOval ball);
+int detectWindowCollision(GWindow window, GOval ball);
 
 int main(void)
 {
@@ -92,7 +92,7 @@ int main(void)
     int lives = LIVES;
 
     // number of points initially
-    int points = 0;
+    double points = 0.0;
 
     // Randomized initial velocity of ball
     double velX = MAX_VEL * (drand48() - 0.5);
@@ -117,74 +117,78 @@ int main(void)
     // First update to scoreboard
     updateScoreboard(window, label, points, lives);
 
+    GEvent event = waitForEvent(MOUSE_EVENT);
+    
     // keep playing until game over
     while (lives > 0 && bricks > 0)
     {
-        move(ball, velX, velY);
-
-        // Colliding with left edge of window
-        if(getX(ball) <= 0)
+        reset = false;
+        move(ball, velX, velY);         
+        
+        event = getNextEvent(MOUSE_EVENT);
+        if(event != NULL)
         {
-            velX *= -1.0;
+            if(getEventType(event) == MOUSE_MOVED)
+            {
+                setLocation(
+                    paddle,
+                    getX(event) - getWidth(paddle) / 2,
+                    getY(paddle)
+                );
+            }
         }
-
-        // Colliding with top edge of window
-        if(getY(ball) <= 0)
+        
+        switch(detectWindowCollision(window, ball))
         {
-            velY *= -1.0;
+            // Collides with the left border
+            case 0:
+                velX *= -1.0;
+                break;
+            // Collides with the top border
+            case 1:
+                velY *= -1.0;
+                break;
+            // Collides with the right border
+            case 2:
+                velX *= -1.0;
+                break;
+            // 
+            case 3:
+                // Lose a life, wait for click to restart game
+                lives--;
+                waitForClick();
+                setLocation(
+                    ball,
+                    (getWidth(window) - getWidth(ball)) / 2,
+                    (getHeight(window) - getWidth(ball)) / 2
+                );
+                reset = true;
+                break;
+            default:
+                break;
         }
-        // Colliding with right edge of window
-        if(getX(ball) + 2 * RADIUS >= getWidth(window))
-        {
-            velX *= -1.0;
-        }
-        // Zoomed past our paddle
-        if(getY(ball) + 2 * RADIUS >= getY(paddle))
-        {
-            // We lost a life!
-            lives--;
-            waitForClick();
-
-            // Relocate to center
-            setLocation(
-                ball,
-                (getWidth(window) - getWidth(ball)) / 2,
-                (getHeight(window) - getWidth(ball)) / 2
-            );
-
-            reset = true;
-        }
+        
+        // Proceed only if the ball can still be played with
         if(!reset)
         {
             GObject object = detectCollision(window, ball);
-            
             if(object != NULL)
             {
-                
-                switch(handleObjectCollision(window, ball))
+                if(object == paddle)
                 {
-                    // Paddle collision
-                    case 0:
-                        velY *= -1.0;
-                        break;
-                    // Brick collision
-                    case 1:
-                        // Increment speed by 1% for every brick destroyed
-                        velY *= -1.01;
-                        velX *= 1.01;
-                        removeGWindow(window, object);
-                        bricks--, points++;
-                        break;
-                    // No worthwhile collision
-                    default:
-                        break;
+                    velY *= -1.0;;
                 }
-
+                else if(strcmp(getType(object), "GRect") == 0)
+                {
+                    velY *= -1.01;
+                    velX *= 1.01;
+                    removeGWindow(window, object);
+                    bricks--;
+                    points = 1.01 * points + 1.0;
+                }
             }
-                
         }
-    }
-
+        
         updateScoreboard(window, label, points, lives);
         pause(TICK_TIME);
     }
@@ -286,11 +290,11 @@ GLabel initScoreboard(GWindow window)
 /**
  * Updates scoreboard's label, keeping it centered in window.
  */
-void updateScoreboard(GWindow window, GLabel label, int points, int lives)
+void updateScoreboard(GWindow window, GLabel label, double points, int lives)
 {
     // update label
     char s[12];
-    sprintf(s, "%i P : %i L", points, lives);
+    sprintf(s, "%.0lf P : %d L", points, lives);
 
     // Using fixed width font makes it easier to calculate
     setFont(label, "Liberation Mono-Bold-32");
@@ -354,21 +358,36 @@ GObject detectCollision(GWindow window, GOval ball)
 }
 
 /**
- * Handles logic for the ball colliding with some objects in the window like:
- * Return codes:
+ * Detects collisions of the ball with the window border
+ * Returns the following values for the respective sides:
  * NOTHING: -1
- * paddle: 0,
- * brick: 1; 
+ * LEFT: 0
+ * TOP: 1
+ * RIGHT: 2
+ * BOTTOM: 3
  */
-int handleObjectCollision(GWindow window, GOval ball)
+int detectWindowCollision(GWindow window, GOval ball)
 {
-    if(object == paddle)
+    // Colliding with left edge of window
+    if(getX(ball) <= 0)
     {
         return 0;
     }
-    else if(strcmp(getType(object), "GRect") == 0)
+
+    // Colliding with top edge of window
+    else if(getY(ball) <= 0)
     {
         return 1;
+    }
+    // Colliding with right edge of window
+    else if(getX(ball) + 2 * RADIUS >= getWidth(window))
+    {
+        return 2;
+    }
+    // Not checked against paddle on purpose
+    else if(getY(ball) + 2 * RADIUS >= getHeight(window))
+    {
+        return 3;
     }
     return -1;
 }
