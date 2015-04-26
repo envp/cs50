@@ -54,6 +54,11 @@
 #define TICK_TIME 10
 #define MAX_VEL 3.17396
 
+// Non-boring angles for launching ball (Random sine between given angles)
+#define RSINE(a, b) ((sin(a)) + drand48() * ((sin(b)) - (sin(a))))
+#define SWEEP_START ((-22.5 / 180.0) * M_PI)
+#define SWEEP_END ((202.5 / 180.0) * M_PI)
+
 // prototypes
 void initBricks(GWindow window);
 GOval initBall(GWindow window);
@@ -62,7 +67,7 @@ GLabel initScoreboard(GWindow window);
 void updateScoreboard(GWindow window, GLabel label, int points, int lives);
 GObject detectCollision(GWindow window, GOval ball);
 void bindToMouseX(GRect paddle);
-void initVelocity(double* vx, double* vy, double ent);
+void initVelocity(double* vx, double* vy);
 // Inline functions to mutate game state based on collision events
 int detectWindowCollision(GWindow window, GOval ball);
 
@@ -97,7 +102,7 @@ int main(void)
 
     // Randomized initial velocity of ball
     double velY, velX;
-    initVelocity(&velX, &velY, drand48());
+    initVelocity(&velX, &velY);
 
     // Flag to determine if state was reset
     bool reset = false;
@@ -144,14 +149,14 @@ int main(void)
             case 3:
                 // Lose a life, wait for click to restart game
                 lives--;
-                updateScoreboard(window, label, points, lives);
                 waitForClick();
                 setLocation(
                     ball,
                     (getWidth(window) - getWidth(ball)) / 2,
                     (getHeight(window) - getWidth(ball)) / 2
                 );
-                reset = true;                
+                initVelocity(&velX, &velY);
+                reset = true;
                 break;
             default:
                 break;
@@ -399,9 +404,9 @@ inline void bindToMouseX(GRect paddle)
     }
 }
 
-void initVelocity(double* vx, double* vy, double ent)
+void initVelocity(double* vx, double* vy)
 {
-    double y = MAX_VEL * ent;
+    double y = MAX_VEL * RSINE(SWEEP_START, SWEEP_END);
     *vx = sqrt(MAX_VEL * MAX_VEL - y * y);
     *vy = y;
 }
